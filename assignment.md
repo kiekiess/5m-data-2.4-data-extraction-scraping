@@ -36,7 +36,26 @@ def parse_and_extract_rows(soup: BeautifulSoup):
 Answer:
 
 ```python
+def parse_and_extract_rows(soup):
+    headers = [th.text.strip() for th in soup.find('tr').find_all('th')]
+    for team in soup.find_all('tr', class_='team'):
+        yield {header: td.text.strip() for header, td in zip(headers, team.find_all('td'))}
 
+def scrape_all_pages():
+    page = 1
+    while True:
+        res = session.get(BASE_URL, params={'page': page})
+        soup = BeautifulSoup(res.text, 'html.parser')
+        yield from parse_and_extract_rows(soup)
+
+        next_btn = soup.select_one('ul.pagination li.next a')
+        if not next_btn or 'disabled' in next_btn.parent.get('class', []):
+            break
+        page += 1
+
+# Example usage:
+for row in scrape_all_pages():
+    print(row)
 ```
 
 ## Submission
