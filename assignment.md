@@ -36,26 +36,56 @@ def parse_and_extract_rows(soup: BeautifulSoup):
 Answer:
 
 ```python
-def parse_and_extract_rows(soup):
-    headers = [th.text.strip() for th in soup.find('tr').find_all('th')]
-    for team in soup.find_all('tr', class_='team'):
-        yield {header: td.text.strip() for header, td in zip(headers, team.find_all('td'))}
+def parse_and_extract_rows(soup: BeautifulSoup):
+   
+    header = soup.find('tr')
+    headers = [th.text.strip() for th in header.find_all('th')]
 
-def scrape_all_pages():
-    page = 1
-    while True:
-        res = session.get(BASE_URL, params={'page': page})
-        soup = BeautifulSoup(res.text, 'html.parser')
-        yield from parse_and_extract_rows(soup)
+    rows = []
+    teams = soup.find_all('tr', class_='team')
+    for team in teams:
+        row_dict = {}
+        for header, col in zip(headers, team.find_all('td')):
+            row_dict[header] = col.text.strip()
+        rows.append(row_dict)
 
-        next_btn = soup.select_one('ul.pagination li.next a')
-        if not next_btn or 'disabled' in next_btn.parent.get('class', []):
-            break
-        page += 1
+    return rows
+
+
+def scrape_all_pages(start_url: str):
+    """
+    Scrape all pages starting from the given URL, following the 'Next' button.
+
+    Args:
+        start_url: The URL of the first page.
+
+    Yields:
+        Dictionaries for each row across all pages.
+    """
+    url = start_url
+    while url:
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Yield rows from current page
+        for row in parse_and_extract_rows(soup):
+            yield row
+
+        # Find the "Next" button
+        next_btn = soup.find("a", {"aria-label": "Next"})
+        if next_btn and "href" in next_btn.attrs:
+            # Handle relative links safely
+            url = urljoin(url, next_btn["href"])
+        else:
+            url = None
+
 
 # Example usage:
-for row in scrape_all_pages():
-    print(row)
+if __name__ == "__main__":
+    start_url = "https://www.scrapethissite.com/pages/forms/"
+    for row in scrape_all_pages(start_url):
+        print(row)
+
 ```
 
 ## Submission
